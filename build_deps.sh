@@ -15,7 +15,15 @@ cd deps/umu-launcher
 make
 cd ../..
 
+echo "=== Building gamescope (kbm fork) ==="
+cd deps/gamescope
+git submodule update --init
+meson setup build/ --buildtype=release || true
+ninja -C build/
+cd ../..
+
 echo "=== All deps built ==="
 echo "goldberg x64: deps/gbe_fork/build/x64/steamclient.so"
 echo "goldberg x32: deps/gbe_fork/build/x32/steamclient.so"
 echo "umu-launcher: deps/umu-launcher/builddir/umu-run"
+echo "gamescope-kbm: deps/gamescope/build/src/gamescope"
