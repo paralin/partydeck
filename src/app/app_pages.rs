@@ -25,10 +25,10 @@ impl PartyApp {
         ui.separator();
         ui.label("Press SELECT/BACK or Tab to unlock gamepad navigation.");
         ui.separator();
-        ui.label("PartyDeck has discontinued development; no further support will be provided.");
         ui.horizontal_wrapped(|ui| {
-            ui.label("This final release is untested; if you encounter any issues that you did not experience in previous versions, feel free to revert to");
-            ui.hyperlink_to("0.8.5", "https://github.com/wunnr/partydeck/releases/tag/v0.8.5");
+            ui.label("Development continued at");
+            ui.hyperlink_to("paralin/partydeck", "https://github.com/paralin/partydeck");
+            ui.label("- thanks to @wunnr for all the original work!");
         });
         ui.label("Thank you to Ko-fi supporters:");
         ui.label("Framilano, Jayden, Marc, Max Rei");
@@ -49,7 +49,6 @@ impl PartyApp {
             ui.hyperlink_to("@Twig6943", "https://github.com/Twig6943");
         });
         ui.label("And thank you to anyone who downloaded and used PartyDeck! Happy gaming!");
-        
     }
 
     pub fn display_page_settings(&mut self, ui: &mut Ui) {

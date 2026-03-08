@@ -82,7 +82,7 @@ impl PartyApp {
                     "https://github.com/wunnr/partydeck/tree/main?tab=License-2-ov-file",
                 )
                 .on_hover_text("Third-Party Licenses");
-                ui.hyperlink_to("", "https://github.com/wunnr/partydeck")
+                ui.hyperlink_to("", "https://github.com/paralin/partydeck")
                     .on_hover_text("GitHub");
             });
         });
