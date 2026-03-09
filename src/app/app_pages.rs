@@ -26,29 +26,10 @@ impl PartyApp {
         ui.label("Press SELECT/BACK or Tab to unlock gamepad navigation.");
         ui.separator();
         ui.horizontal_wrapped(|ui| {
-            ui.label("Development continued at");
             ui.hyperlink_to("paralin/partydeck", "https://github.com/paralin/partydeck");
-            ui.label("- thanks to @wunnr for all the original work!");
+            ui.label("- forked from");
+            ui.hyperlink_to("wunnr/partydeck", "https://github.com/wunnr/partydeck");
         });
-        ui.label("Thank you to Ko-fi supporters:");
-        ui.label("Framilano, Jayden, Marc, Max Rei");
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Thank you to");
-            ui.hyperlink_to(" GitHub", "https://github.com/wunnr/partydeck");
-            ui.label("contributors/handler creators:")
-        });
-        ui.horizontal_wrapped(|ui| {
-            ui.hyperlink_to("@Blahkaey", "https://github.com/Blahkaey");
-            ui.hyperlink_to("@blckink", "https://github.com/blckink");
-            ui.hyperlink_to("@davidawesome-02", "https://github.com/davidawesome-02");
-            ui.hyperlink_to("@felipecrs", "https://github.com/felipecrs");
-            ui.hyperlink_to("@framilano", "https://github.com/framilano");
-            ui.hyperlink_to("@FrancisBernard34", "https://github.com/FrancisBernard34");
-            ui.hyperlink_to("@Rudicito", "https://github.com/Rudicito");
-            ui.hyperlink_to("@Tau5", "https://github.com/Tau5");
-            ui.hyperlink_to("@Twig6943", "https://github.com/Twig6943");
-        });
-        ui.label("And thank you to anyone who downloaded and used PartyDeck! Happy gaming!");
     }
 
     pub fn display_page_settings(&mut self, ui: &mut Ui) {
