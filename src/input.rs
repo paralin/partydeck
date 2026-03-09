@@ -48,6 +48,18 @@ impl InputDevice {
     pub fn name(&self) -> &str {
         self.dev.name().unwrap_or_else(|| "")
     }
+    /// Stable identifier for matching devices across sessions.
+    /// Uses unique_name (e.g. Bluetooth MAC) if available, otherwise
+    /// falls back to "vendor:product:name".
+    pub fn stable_id(&self) -> String {
+        if let Some(uniq) = self.dev.unique_name() {
+            if !uniq.is_empty() {
+                return uniq.to_string();
+            }
+        }
+        let id = self.dev.input_id();
+        format!("{:04x}:{:04x}:{}", id.vendor(), id.product(), self.name())
+    }
     pub fn emoji(&self) -> &str {
         match self.device_type() {
             DeviceType::Gamepad => "🎮",

@@ -6,6 +6,38 @@ use std::io::BufReader;
 
 use serde::{Deserialize, Serialize};
 
+/// A single saved instance: which devices (by stable ID) and which profile.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SavedInstance {
+    pub device_ids: Vec<String>,
+    pub profile: String,
+}
+
+/// Last instance configuration for a handler, saved between sessions.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SavedInstanceConfig {
+    pub handler_name: String,
+    pub instances: Vec<SavedInstance>,
+}
+
+pub fn load_last_instances(handler_name: &str) -> Option<SavedInstanceConfig> {
+    let path = PATH_PARTY.join("last_instances.json");
+    let file = File::open(path).ok()?;
+    let config: SavedInstanceConfig = serde_json::from_reader(BufReader::new(file)).ok()?;
+    if config.handler_name == handler_name {
+        Some(config)
+    } else {
+        None
+    }
+}
+
+pub fn save_last_instances(config: &SavedInstanceConfig) -> Result<(), Box<dyn Error>> {
+    let path = PATH_PARTY.join("last_instances.json");
+    let file = File::create(path)?;
+    serde_json::to_writer_pretty(file, config)?;
+    Ok(())
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
 pub enum PadFilterType {
     All,

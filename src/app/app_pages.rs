@@ -5,7 +5,7 @@ use crate::input::*;
 use crate::paths::*;
 use crate::profiles::*;
 use crate::util::*;
-use crate::monitor::get_monitors_errorless;
+
 
 use dialog::DialogBox;
 use eframe::egui::RichText;
@@ -275,46 +275,42 @@ impl PartyApp {
 
         ui.separator();
 
-        let h = cur_handler!(self);
-
-        ui.horizontal(|ui| {
-            let playbtn = ui.add(egui::Button::image_and_text(
-                egui::include_image!("../../res/BTN_START.png"),
-                "Play",
-            ));
-            if playbtn.clicked() {
-                if h.spec_ver != HANDLER_SPEC_CURRENT_VERSION {
-                    let mismatch = match h.spec_ver < HANDLER_SPEC_CURRENT_VERSION {
-                        true => "an older",
-                        false => "a newer",
-                    };
-                    let mismatch2 = match h.spec_ver < HANDLER_SPEC_CURRENT_VERSION {
-                        true => "Up-to-date handlers can be found by clicking the ⮋ button on the top bar of the launcher.",
-                        false => "It is recommended to update PartyDeck to the latest version.",
-                    };
-                    msg(
-                        "Handler version mismatch",
-                        &format!("This handler was meant for use with {} version of PartyDeck; you may experience issues or the game may not work at all. {} If everything still works fine, you can prevent this message appearing in the future by editing the handler, updating the spec version and saving.",
-                            mismatch, mismatch2
-                        )
-                    );
+        let mut should_enter_instances = false;
+        {
+            let h = cur_handler!(self);
+            ui.horizontal(|ui| {
+                let playbtn = ui.add(egui::Button::image_and_text(
+                    egui::include_image!("../../res/BTN_START.png"),
+                    "Play",
+                ));
+                if playbtn.clicked() {
+                    if h.spec_ver != HANDLER_SPEC_CURRENT_VERSION {
+                        let mismatch = match h.spec_ver < HANDLER_SPEC_CURRENT_VERSION {
+                            true => "an older",
+                            false => "a newer",
+                        };
+                        let mismatch2 = match h.spec_ver < HANDLER_SPEC_CURRENT_VERSION {
+                            true => "Up-to-date handlers can be found by clicking the ⮋ button on the top bar of the launcher.",
+                            false => "It is recommended to update PartyDeck to the latest version.",
+                        };
+                        msg(
+                            "Handler version mismatch",
+                            &format!("This handler was meant for use with {} version of PartyDeck; you may experience issues or the game may not work at all. {} If everything still works fine, you can prevent this message appearing in the future by editing the handler, updating the spec version and saving.",
+                                mismatch, mismatch2
+                            )
+                        );
+                    }
+                    if h.steam_appid.is_none() && h.path_gameroot.is_empty() {
+                        msg(
+                            "Game root path not found",
+                            "Please specify the game's root folder.",
+                        );
+                        self.handler_edit = Some(h.clone());
+                        self.cur_page = MenuPage::EditHandler;
+                    } else {
+                        should_enter_instances = true;
+                    }
                 }
-                if h.steam_appid.is_none() && h.path_gameroot.is_empty() {
-                    msg(
-                        "Game root path not found",
-                        "Please specify the game's root folder.",
-                    );
-                    self.handler_edit = Some(h.clone());
-                    self.cur_page = MenuPage::EditHandler;
-                } else {
-                    self.instances.clear();
-                    self.input_devices = scan_input_devices(&self.options.pad_filter_type);
-                    self.monitors = get_monitors_errorless();
-                    self.profiles = scan_profiles(true);
-                    self.instance_add_dev = None;
-                    self.cur_page = MenuPage::Instances;
-                }
-            }
 
             ui.add(egui::Separator::default().vertical());
             if h.win() {
@@ -349,6 +345,11 @@ impl PartyApp {
                     }
                 });
             });
+        } // end h borrow
+
+        if should_enter_instances {
+            self.enter_instances_page();
+        }
     }
 
     pub fn display_page_instances(&mut self, ui: &mut Ui) {

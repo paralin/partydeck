@@ -5,9 +5,58 @@ use crate::handler::*;
 use crate::input::*;
 use crate::instance::*;
 use crate::launch::*;
-use crate::monitor::Monitor;
+use crate::monitor::{Monitor, get_monitors_errorless};
 use crate::profiles::*;
 use crate::util::*;
+
+/// Try to restore instance configuration from last session.
+/// Matches saved devices by stable_id to current input devices.
+fn restore_last_instances(
+    handler_name: &str,
+    input_devices: &[InputDevice],
+    profiles: &[String],
+) -> Vec<Instance> {
+    let saved = match load_last_instances(handler_name) {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    let mut instances = Vec::new();
+    for saved_inst in &saved.instances {
+        let mut device_indices = Vec::new();
+        for saved_id in &saved_inst.device_ids {
+            for (i, dev) in input_devices.iter().enumerate() {
+                if dev.stable_id() == *saved_id {
+                    device_indices.push(i);
+                    break;
+                }
+            }
+        }
+        // Only restore if at least one device was found
+        if device_indices.is_empty() {
+            continue;
+        }
+        let profselection = if saved_inst.profile.is_empty() {
+            0
+        } else {
+            profiles.iter().position(|p| p == &saved_inst.profile).unwrap_or(0)
+        };
+        instances.push(Instance {
+            devices: device_indices,
+            profname: String::new(),
+            profselection,
+            monitor: 0,
+            width: 0,
+            height: 0,
+        });
+    }
+
+    if !instances.is_empty() {
+        println!("[partydeck] Restored {} instance(s) from last session", instances.len());
+    }
+
+    instances
+}
 
 use eframe::egui::{self, Key};
 
@@ -207,8 +256,33 @@ impl PartyApp {
         self.handler_lite.is_some()
     }
 
+    /// Transition to the Instances page, restoring last session if available.
+    pub fn enter_instances_page(&mut self) {
+        self.input_devices = scan_input_devices(&self.options.pad_filter_type);
+        self.monitors = get_monitors_errorless();
+        self.profiles = scan_profiles(true);
+        self.instance_add_dev = None;
+
+        let handler_name = if let Some(h) = &self.handler_lite {
+            h.name.clone()
+        } else if !self.handlers.is_empty() {
+            self.handlers[self.selected_handler].name.clone()
+        } else {
+            String::new()
+        };
+
+        self.instances = restore_last_instances(
+            &handler_name,
+            &self.input_devices,
+            &self.profiles,
+        );
+
+        self.cur_page = MenuPage::Instances;
+    }
+
     fn handle_gamepad_gui(&mut self, raw_input: &mut egui::RawInput) {
         let mut key: Option<egui::Key> = None;
+        let mut should_enter_instances = false;
         for pad in &mut self.input_devices {
             if !pad.enabled() {
                 continue;
@@ -230,10 +304,7 @@ impl PartyApp {
                 Some(PadButton::SelectBtn) => key = Some(Key::Tab),
                 Some(PadButton::StartBtn) => {
                     if self.cur_page == MenuPage::Game {
-                        self.instances.clear();
-                        self.profiles = scan_profiles(true);
-                        self.instance_add_dev = None;
-                        self.cur_page = MenuPage::Instances;
+                        should_enter_instances = true;
                     }
                 }
                 Some(PadButton::Up) => key = Some(Key::ArrowUp),
@@ -253,6 +324,10 @@ impl PartyApp {
                 repeat: false,
                 modifiers: egui::Modifiers::default(),
             });
+        }
+
+        if should_enter_instances {
+            self.enter_instances_page();
         }
     }
 
@@ -417,6 +492,24 @@ impl PartyApp {
 
         let cfg = self.options.clone();
         let _ = save_cfg(&cfg);
+
+        // Save instance config for next session
+        let saved = SavedInstanceConfig {
+            handler_name: handler.name.clone(),
+            instances: self.instances.iter().map(|inst| {
+                SavedInstance {
+                    device_ids: inst.devices.iter().map(|&d| {
+                        self.input_devices[d].stable_id()
+                    }).collect(),
+                    profile: if inst.profselection == 0 {
+                        String::new()
+                    } else {
+                        self.profiles[inst.profselection].clone()
+                    },
+                }
+            }).collect(),
+        };
+        let _ = save_last_instances(&saved);
 
         self.cur_page = MenuPage::Home;
         self.spawn_task(
