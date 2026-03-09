@@ -177,6 +177,7 @@ pub fn launch_cmds(
             &instance.width.to_string(),
             "-H",
             &instance.height.to_string(),
+            "--force-windows-fullscreen",
         ]);
         if cfg.gamescope_force_grab_cursor {
             cmd.arg("--force-grab-cursor");
