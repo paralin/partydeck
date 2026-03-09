@@ -1,6 +1,9 @@
 use x11rb::connection::Connection;
 use x11rb::protocol::randr::ConnectionExt as _;
 
+use std::fs;
+use std::path::Path;
+
 
 #[derive(Clone)]
 pub struct Monitor {
@@ -73,17 +76,88 @@ fn get_monitors_x11() -> Result<Vec<Monitor>, Box<dyn std::error::Error>> {
     Ok(monitors)
 }
 
-pub fn get_monitors_errorless() -> Vec<Monitor> {
+/// Detect monitors via DRM/KMS sysfs. Works on both X11 and Wayland,
+/// and does not require a display connection (works over SSH too).
+/// Reads /sys/class/drm/card*-*/status and /sys/class/drm/card*-*/modes.
+fn get_monitors_drm() -> Result<Vec<Monitor>, Box<dyn std::error::Error>> {
+    let drm_dir = Path::new("/sys/class/drm");
+    if !drm_dir.exists() {
+        return Err("/sys/class/drm not found".into());
+    }
+
     let mut monitors = Vec::new();
 
-    if let Ok(ret_monitors) = get_monitors_x11() {
-        monitors = ret_monitors;
+    let mut entries: Vec<_> = fs::read_dir(drm_dir)?
+        .filter_map(|e| e.ok())
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+
+    for entry in entries {
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        // Only look at connector entries (card0-HDMI-A-1, card0-DP-1, etc.)
+        // Skip bare card entries, renderD*, and Writeback connectors.
+        if !name.contains('-') || name.contains("Writeback") {
+            continue;
+        }
+
+        let path = entry.path();
+
+        let status = fs::read_to_string(path.join("status"))
+            .unwrap_or_default();
+        if status.trim() != "connected" {
+            continue;
+        }
+
+        let modes = fs::read_to_string(path.join("modes"))
+            .unwrap_or_default();
+
+        // First line is the current/preferred mode, e.g. "3840x2160"
+        if let Some(first_mode) = modes.lines().next() {
+            if let Some((w, h)) = first_mode.split_once('x') {
+                if let (Ok(width), Ok(height)) = (w.trim().parse::<u32>(), h.trim().parse::<u32>()) {
+                    // Strip the "card0-" prefix for a cleaner name
+                    let connector_name = name.split_once('-')
+                        .map(|(_, rest)| rest)
+                        .unwrap_or(&name)
+                        .to_string();
+
+                    monitors.push(Monitor {
+                        name: connector_name,
+                        width,
+                        height,
+                    });
+                }
+            }
+        }
     }
 
-    if monitors.len() == 0 { // Quick patch for those who have no x11 visable monitors, so we dont just panic.
-        println!("[PARTYDECK] Failed to get monitors; using assumed 1920x1080");
-        monitors.push(Monitor {name: "Partydeck Virtual Monitor".to_string(), width: 1920, height: 1080});
+    Ok(monitors)
+}
+
+pub fn get_monitors_errorless() -> Vec<Monitor> {
+    // Try X11/RandR first (matches gamescope's SDL behavior)
+    if let Ok(monitors) = get_monitors_x11() {
+        if !monitors.is_empty() {
+            return monitors;
+        }
     }
 
-    return monitors;
+    // Fall back to DRM/KMS sysfs (works on Wayland and over SSH)
+    println!("[PARTYDECK] X11 monitor detection failed, trying DRM/KMS sysfs...");
+    if let Ok(monitors) = get_monitors_drm() {
+        if !monitors.is_empty() {
+            for m in &monitors {
+                println!("[PARTYDECK] DRM: {} ({}x{})", m.name, m.width, m.height);
+            }
+            return monitors;
+        }
+    }
+
+    println!("[PARTYDECK] All monitor detection failed; using assumed 1920x1080");
+    vec![Monitor {
+        name: "Partydeck Virtual Monitor".to_string(),
+        width: 1920,
+        height: 1080,
+    }]
 }
